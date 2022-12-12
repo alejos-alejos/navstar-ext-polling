@@ -9,5 +9,4 @@ const postRetry = async (url,data,n, options ) => {
 };
 export  {
 	postRetry
-
 }

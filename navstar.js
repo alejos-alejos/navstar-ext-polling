@@ -1,278 +1,286 @@
 import axios from "axios";
-import {format, subSeconds} from "date-fns";
-import {postRetry} from "./utils.js";
+import { format, subSeconds } from "date-fns";
+import { postRetry } from "./utils.js";
 
 const baseURL = "http://navstar.com.mx/api-v2/"
-function GmDate(eventTime){
+function GmDate(eventTime) {
 	let eventDate = new Date(eventTime);
-	let parts =  eventDate.toISOString().replace(/[TZ]/g, " ").split(" ");
-	return  parts[0].replace(/-/g, "")+ parts[1].replace(/:/g, "").substring(0, 6);
+	let parts = eventDate.toISOString().replace(/[TZ]/g, " ").split(" ");
+	return parts[0].replace(/-/g, "") + parts[1].replace(/:/g, "").substring(0, 6);
 }
-
-/**
- * Auth function authenticate the client against the navstar api.
- * This is the first function that triggers and interacts with the api.
- * It is run every 15 sec.
- *
- * */
-async function Auth(){
+async function Auth() {
 	const login = process.env.USERNAME;
 	const password = process.env.PASSWORD;
 
-	const authRequest = await axios.post(baseURL+"user/auth",{
+	const authRequest = await axios.post(baseURL + "user/auth", {
 		login, password
 	}, 3);
 	return authRequest.data;
 }
-
-async function GetTags(hash){
-	try{
+async function GetTags(hash) {
+	try {
 		const tag = process.env.TAG;
 
-		const tagRequest = await axios.post(baseURL+"tag/list",{
+		const tagRequest = await axios.post(baseURL + "tag/list", {
 			hash,
 			filter: tag
 		}, 3);
 		const tagResponse = tagRequest.data;
-		if(tagResponse && tagResponse.success === true){
-			return tagResponse.list.find(x=> x.name === tag);
+		if (tagResponse && tagResponse.success === true) {
+			return tagResponse.list.find(x => x.name === tag);
 		}
-	}catch (err){
+	} catch (err) {
 		console.log(err);
 	}
 }
-
-async function GetTrackers(hash){
-	try{
-		const trackerRequest = await axios.post({baseURL+"tracker/list",{
+async function GetTrackers(hash) {
+	try {
+		const trackerRequest = await axios.post(baseURL + "tracker/list", {
 			hash,
 		}, 3);
-			const trackerResponse = trackerRequest.data;
-			if(trackerResponse && trackerResponse.success === true){
-				//console.log();
-				return trackerResponse.list;
-			}
-		}catch (err){
-			console.log(err);
+		const trackerResponse = trackerRequest.data;
+		if (trackerResponse && trackerResponse.success === true) {
+			//console.log();
+			return trackerResponse.list;
 		}
+	} catch (err) {
+		console.log(err);
 	}
+}
+async function GetVehicles(hash, trackers) {
+	try {
+		const vehicleRequest = await axios.post(baseURL + "vehicle/list", {
+			hash,
+		}, 3);
+		const vehicleResponse = vehicleRequest.data;
+		if (vehicleResponse && vehicleResponse.success === true) {
+			const vehicles = trackers.map(t => vehicleResponse.list.find(v => v.tracker_id === t.id));
+			return vehicles;
+		}
+	} catch (err) {
+		console.log(err);
+	}
+}
+async function FetchObjects(hash, tag) {
+	try {
+		const trackers = await GetTrackers(hash);
+		if (trackers && trackers.length > 0) {
+			const trackerResultList = trackers.filter(t => {
+				if (t.tag_bindings.find(b => b.tag_id === tag.id) !== undefined) {
+					return true;
+				}
+				return false;
+			});
+			//	console.log(trackerResultList);
+			const vehicles = await GetVehicles(hash, trackerResultList);
+			return [trackerResultList, vehicles];
+		} else {
 
-	async function GetVehicles (hash, trackers){
-		try{
-			const vehicleRequest = await axios.post(baseURL+"vehicle/list",{
+			console.log("Something went wrong at trying to fetch trackers");
+		}
+		return [undefined, undefined];
+	} catch (err) {
+		console.log(err);
+		return [undefined, undefined];
+	}
+}
+async function NeedsUpdate(hash, trackers, fireDate) {
+	try {
+		console.log("Last check: " + fireDate);
+		const historyRequest = await axios.post(baseURL + 'history/tracker/list',
+			{
 				hash,
+				trackers: trackers.map(t => t.id),
+				from: format(subSeconds(fireDate, 30), "yyyy-MM-dd HH:mm:ss"),
+				to: format(fireDate, "yyyy-MM-dd HH:mm:ss")
 			}, 3);
-			const vehicleResponse = vehicleRequest.data;
-			if(vehicleResponse && vehicleResponse.success === true){
-				const vehicles = trackers.map(t=>vehicleResponse.list.find(v=> v.tracker_id === t.id));
-				return vehicles;
-			}
-		}catch (err){
-			console.log(err);
+		console.log(historyRequest.data);
+		if (historyRequest.data.success === true) {
+			//Here we should filter out the events that are not being tracked
+			return historyRequest.data.list;
+		} else {
+
+			console.log("Something went wrong at trying to fetch history events");
 		}
+	} catch (err) {
+		console.log(err);
 	}
-
-
-	async function FetchObjects(hash, tag){
-		try{
-			const trackers = await GetTrackers(hash);
-			if(trackers && trackers.length > 0 ){
-				const trackerResultList = trackers.filter(t=>{
-					if(t.tag_bindings.find(b=> b.tag_id === tag.id) !== undefined){
-						return true;
-					}
-					return false;
-				});
-				//	console.log(trackerResultList);
-				const vehicles = await GetVehicles(hash, trackerResultList);
-				return [trackerResultList, vehicles];
-			}else{
-
-				console.log("Something went wrong at trying to fetch trackers");
-			}
-			return [undefined, undefined];
-		}catch(err){
-			console.log(err);
-			return [undefined, undefined];
+}
+async function GetLastGPS(hash, tracker) {
+	try {
+		const lastGPSrequest = await axios.post(baseURL + "tracker/get_last_gps_point", {
+			hash,
+			tracker_id: tracker.id
+		}, 3);
+		if (lastGPSrequest.data && lastGPSrequest.data.success === true) {
+			return lastGPSrequest.data.value;
 		}
+	} catch (err) {
+		console.log(err);
 	}
-
-	async function NeedsUpdate(hash, trackers, fireDate){
-		try{
-			console.log("Last check: " + fireDate);
-			const historyRequest = await axios.post(baseURL + 'history/tracker/list',
-				{
-					hash,
-					trackers: trackers.map(t=> t.id),
-					from:format(subSeconds(fireDate, 30), "yyyy-MM-dd HH:mm:ss"),
-					to: format(fireDate, "yyyy-MM-dd HH:mm:ss")
-				}, 3);
-			console.log(historyRequest.data);
-			if(historyRequest.data.success === true){
-				//Here we should filter out the events that are not being tracked
-				return historyRequest.data.list;
-			}else{
-
-				console.log("Something went wrong at trying to fetch history events");
-			}
-		}catch(err){
-			console.log(err);
+}
+async function GetTrackerState(hash, tracker) {
+	try {
+		const lastGPSrequest = await axios.post(baseURL + "tracker/get_state", {
+			hash,
+			tracker_id: tracker.id
+		}, 3);
+		if (lastGPSrequest.data && lastGPSrequest.data.success === true) {
+			return lastGPSrequest.data.state;
 		}
+	} catch (err) {
+		console.log(err);
 	}
-
-	async function GetLastGPS(hash, tracker){
-		try{
-			const lastGPSrequest = await axios.post(baseURL+"tracker/get_last_gps_point",{
-				hash,
-				tracker_id: tracker.id
-			},3);
-			if(lastGPSrequest.data && lastGPSrequest.data.success === true){
-				return lastGPSrequest.data.value;
+}
+async function GetTemp(hash, tracker) {
+	try {
+		const diagnosticsRequest = await axios.post(baseURL + "tracker/get_diagnostics", {
+			hash,
+			tracker_id: tracker.id
+		}, 3);
+		if (diagnosticsRequest.data && diagnosticsRequest.data.success === true) {
+			let inputs = diagnosticsRequest.data.inputs;
+			let value;
+			if (inputs && inputs.find(i => i.name === "can_engine_temp")) {
+				value = inputs.find(i => i.name === "can_engine_temp");
+			} else if (inputs.find(i => i.name === "can_coolant_t")) {
+				value = inputs.find(i => i.name === "can_coolant_t");
+			} else if (inputs && inputs.find(i => i.name === "obd_coolant_t")) {
+				value = inputs.find(i => i.name === "obd_coolant_t");
+			} else if (inputs.find(i => i.name === "obd_intake_air_t")) {
+				value = inputs.find(i => i.name === "obd_intake_air_t");
+			} else if (inputs.find(i => i.name === "can_intake_air_t")) {
+				value = inputs.find(i => i.name === "can_intake_air_t");
 			}
-		}catch (err){
-			console.log(err);
-		}
-	}
-
-	async function GetTemp(hash, tracker){
-		try{
-			const diagnosticsRequest = await axios.post(baseURL+"tracker/get_diagnostics",{
-				hash,
-				tracker_id: tracker.id
-			},3);
-			if(diagnosticsRequest.data && diagnosticsRequest.data.success === true){
-				let inputs = diagnosticsRequest.data.inputs;
-				let value;
-				if(inputs && inputs.find(i=> i.name === "can_engine_temp")){
-					value = inputs.find(i=> i.name === "can_engine_temp");
-				}else if(inputs.find(i=> i.name === "can_coolant_t")){
-					value = inputs.find(i=> i.name === "can_coolant_t");
-				}else if(inputs && inputs.find(i=> i.name === "obd_coolant_t")){
-					value = inputs.find(i=> i.name === "obd_coolant_t");
-				}else if(inputs.find(i=> i.name === "obd_intake_air_t")){
-					value = inputs.find(i=> i.name === "obd_intake_air_t");
-				}else if(inputs.find(i=> i.name === "can_intake_air_t")){
-					value = inputs.find(i=> i.name === "can_intake_air_t");
-				}
-				if(value === undefined){
-					console.log("No temp. value could be found for: " + tracker.id);
-					return null;
-				}
-				if(value.units_type !== 'celsius'){
-					return ((value.value - 32)*5)/9;
-
-				}
-				return value.value;
+			if (value === undefined) {
+				console.log("No temp. value could be found for: " + tracker.id);
+				return null;
 			}
-		}catch (err){
-			console.error(err);
-		}
-	}
+			if (value.units_type !== 'celsius') {
+				return ((value.value - 32) * 5) / 9;
 
-	async function GetOdometer(hash, tracker){
-		try{
-			const counterRequest = await axios.post(baseURL+"tracker/get_counters",{
-				hash,
-				tracker_id: tracker.id
-			},3);
-			if(counterRequest.data && counterRequest.data.success === true){
-				let res = counterRequest.data.list.find(e=> e.type === "odometer");
-				return res != undefined ? res.value : (null && console.log(`Odometer could not be found for: ${tracker.id}`));
 			}
-		}catch (err){
-			console.log(err);
+			return value.value;
 		}
+	} catch (err) {
+		console.error(err);
 	}
+}
+async function GetOdometer(hash, tracker) {
+	try {
+		const counterRequest = await axios.post(baseURL + "tracker/get_counters", {
+			hash,
+			tracker_id: tracker.id
+		}, 3);
+		if (counterRequest.data && counterRequest.data.success === true) {
+			let res = counterRequest.data.list.find(e => e.type === "odometer");
+			return res != undefined ? res.value : (null && console.log(`Odometer could not be found for: ${tracker.id}`));
+		}
+	} catch (err) {
+		console.log(err);
+	}
+}
+function readFuelPercentage(data, vehicle) {
+	console.log(`Attempting to read fuel data of ${vehicle.vin}`);
+	console.log(data);
 
-	function readFuelPercentage(data, vehicle){
-		console.log(`Attempting to read fuel data of ${vehicle.vin}`);
-		console.log(data);
-
-		if(data.units_type === 'percent'){
-			return data.value;
-		}
-		if(data.units === '' && data.max_value === 100 && data.min_value === 0){
-			return data.value;
-		}
-		if(vehicle.fuel_tank_volume === undefined){
-			return null;
-		}
-		if(data.units_type === 'litre'){
-			//liters
-			return (data.value*100)/vehicle.fuel_tank_volume;
-		}
-		if(data.units_type !== undefined && data.units_type.includes('gallon')){
-			return ((data.value*3.785411)*100)/vehicle.fuel_tank_volume;
-		}
+	if (data.units_type === 'percent') {
+		return data.value;
+	}
+	if (data.units === '' && data.max_value === 100 && data.min_value === 0) {
+		return data.value;
+	}
+	if (vehicle.fuel_tank_volume === undefined) {
 		return null;
 	}
-
-	async function GetFuel(hash, tracker, vehicle){
-		try{
-			const fuelRequest = await axios.post(baseURL+"tracker/get_fuel",{
-				hash,
-				tracker_id: tracker.id
-			},3);
-			if(fuelRequest.data && fuelRequest.data.success === true){
-				let result;
-				let value;
-				let inputs = fuelRequest.data.inputs;
-				if(inputs &&  inputs.find(i=>
+	if (data.units_type === 'litre') {
+		//liters
+		return (data.value * 100) / vehicle.fuel_tank_volume;
+	}
+	if (data.units_type !== undefined && data.units_type.includes('gallon')) {
+		return ((data.value * 3.785411) * 100) / vehicle.fuel_tank_volume;
+	}
+	return null;
+}
+async function GetFuel(hash, tracker, vehicle) {
+	try {
+		const fuelRequest = await axios.post(baseURL + "tracker/get_fuel", {
+			hash,
+			tracker_id: tracker.id
+		}, 3);
+		if (fuelRequest.data && fuelRequest.data.success === true) {
+			let result;
+			let value;
+			let inputs = fuelRequest.data.inputs;
+			if (inputs && inputs.find(i =>
+				(i.name === "fuel_level" ||
+					i.name === "can_fuel" ||
+					i.name === "can_fuel_1" ||
+					i.name === "can_fuel_2" ||
+					i.name === "can_fuel_litres" ||
+					i.name === "obd_fuel") && i.value !== undefined)) {
+				value = inputs.find(i =>
 					(i.name === "fuel_level" ||
 						i.name === "can_fuel" ||
 						i.name === "can_fuel_1" ||
 						i.name === "can_fuel_2" ||
 						i.name === "can_fuel_litres" ||
-						i.name === "obd_fuel") && i.value !== undefined)){
-					value = inputs.find(i=>
-						(i.name === "fuel_level" ||
-							i.name === "can_fuel" ||
-							i.name === "can_fuel_1" ||
-							i.name === "can_fuel_2" ||
-							i.name === "can_fuel_litres" ||
-							i.name ==="obd_fuel") && i.value !== undefined);
-					result = readFuelPercentage(value, vehicle);
-				}
-				if(result === undefined){
-					console.log("Fuel data not found on: "+ tracker.id);
-					return null;
-				}
-				return result;
+						i.name === "obd_fuel") && i.value !== undefined);
+				result = readFuelPercentage(value, vehicle);
 			}
-		}catch (err){
-			console.log(err);
-		}
-	}
-
-
-	async function GetData(hash, event, history, tracker, vehicle){
-		try{
-			let result = {};
-			let lastGPS = await GetLastGPS(hash,tracker);
-			let tempData= await GetTemp(hash,tracker);
-			let odometer = await GetOdometer(hash, tracker);
-			let fuel = await GetFuel(hash, tracker, vehicle);
-			result.sNoSerie = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
-			result.sEvento = event.code;
-			result.sFechaHoraPaquete = GmDate(history.time);
-			result.sLatitud =`${history.location.lat}`;
-			result.sLongitud = `${history.location.lng}`;
-			result.sVelocidad = lastGPS != undefined ?`${lastGPS.speed}`: null;
-			result.sHeading = lastGPS != undefined ? `${lastGPS.heading}`: null;
-			result.sTemperatura = tempData != undefined ? `${tempData}`: null;
-			result.sOdometroGPS = odometer != undefined ? `${odometer}`: null;
-			result.sPorcentajeGasolina = fuel != undefined ? `${fuel}`: null;
+			if (result === undefined) {
+				console.log("Fuel data not found on: " + tracker.id);
+				return null;
+			}
 			return result;
-		}catch(err){
-			console.error(err)}
+		}
+	} catch (err) {
+		console.log(err);
 	}
+}
+function getDirection(angle) {
+	var directions = ['North', 'North-East', 'East', 'South-East', 'South', 'South-West', 'West', 'North-West'];
+	var index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
+	return directions[index];
+}
+async function GetData(hash, event, history, tracker, vehicle) {
+	try {
+		/* Retrieve data from API */
+		let trackerState = await GetTrackerState(hash, tracker)
+		let lastGPS = await GetLastGPS(hash, tracker);
+		let tempData = await GetTemp(hash, tracker);
+		let odometer = await GetOdometer(hash, tracker);
+		/* Create Data object (to send into SOAP service) */
+		let result = {};
+		result.altitude = trackerState.gps.alt
+		result.battery = trackerState.battery_level
+		result.code = event.code
+		result.course = getDirection(lastGPS.heading)
+		result.date = trackerState.gps.updated
+		result.latitude = lastGPS.lat
+		result.longitude = lastGPS.lng
+		result.odometer = odometer != undefined ? `${odometer}` : null;
+		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
+		result.speed = lastGPS != undefined ? `${lastGPS.speed}` : null;
+		result.temperature = tempData != undefined ? `${tempData}` : null;
+		// let me figure it out
+		result.asset // * Alphanumeric, placas del vehiculo sin espacios
+		result.direction // Direccion actual del GPS
+		result.humidity // double 
+		result.ignition // Boolean, determina si el vehiculo esta encendido
+		//IDK 
+		result.customer // {id: identificador de la empresa solicitante, name: Nombre de la empresa transportista}
+		result.shipment // text, numero de viaje o identificador 
+		return result;
+	} catch (err) {
+		console.error(err)
+	}
+}
+export {
+	Auth,
+	GetTags,
+	FetchObjects,
+	NeedsUpdate,
+	GetData
 
-
-	export {
-		Auth,
-		GetTags,
-		FetchObjects,
-		NeedsUpdate,
-		GetData
-
-	};
+};
