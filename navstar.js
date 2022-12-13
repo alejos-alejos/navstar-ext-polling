@@ -1,6 +1,5 @@
 import axios from "axios";
 import { format, subSeconds } from "date-fns";
-import { postRetry } from "./utils.js";
 
 const baseURL = "http://navstar.com.mx/api-v2/"
 function GmDate(eventTime) {
@@ -8,7 +7,7 @@ function GmDate(eventTime) {
 	let parts = eventDate.toISOString().replace(/[TZ]/g, " ").split(" ");
 	return parts[0].replace(/-/g, "") + parts[1].replace(/:/g, "").substring(0, 6);
 }
-async function Auth() {
+const Auth = async () => {
 	const login = process.env.USERNAME;
 	const password = process.env.PASSWORD;
 
@@ -17,7 +16,7 @@ async function Auth() {
 	}, 3);
 	return authRequest.data;
 }
-async function GetTags(hash) {
+const GetTags = async (hash) => {
 	try {
 		const tag = process.env.TAG;
 
@@ -33,7 +32,7 @@ async function GetTags(hash) {
 		console.log(err);
 	}
 }
-async function GetTrackers(hash) {
+const GetTrackers = async (hash) => {
 	try {
 		const trackerRequest = await axios.post(baseURL + "tracker/list", {
 			hash,
@@ -47,7 +46,7 @@ async function GetTrackers(hash) {
 		console.log(err);
 	}
 }
-async function GetVehicles(hash, trackers) {
+const GetVehicles = async (hash, trackers) => {
 	try {
 		const vehicleRequest = await axios.post(baseURL + "vehicle/list", {
 			hash,
@@ -61,7 +60,7 @@ async function GetVehicles(hash, trackers) {
 		console.log(err);
 	}
 }
-async function FetchObjects(hash, tag) {
+const FetchObjects = async (hash, tag) => {
 	try {
 		const trackers = await GetTrackers(hash);
 		if (trackers && trackers.length > 0) {
@@ -84,7 +83,8 @@ async function FetchObjects(hash, tag) {
 		return [undefined, undefined];
 	}
 }
-async function NeedsUpdate(hash, trackers, fireDate) {
+
+const NeedsUpdate = async (hash, trackers, fireDate) => {
 	try {
 		console.log("Last check: " + fireDate);
 		const historyRequest = await axios.post(baseURL + 'history/tracker/list',
@@ -106,7 +106,7 @@ async function NeedsUpdate(hash, trackers, fireDate) {
 		console.log(err);
 	}
 }
-async function GetLastGPS(hash, tracker) {
+const GetLastGPS = async (hash, tracker) => {
 	try {
 		const lastGPSrequest = await axios.post(baseURL + "tracker/get_last_gps_point", {
 			hash,
@@ -119,7 +119,7 @@ async function GetLastGPS(hash, tracker) {
 		console.log(err);
 	}
 }
-async function GetTrackerState(hash, tracker) {
+const GetTrackerState = async (hash, tracker) => {
 	try {
 		const lastGPSrequest = await axios.post(baseURL + "tracker/get_state", {
 			hash,
@@ -132,7 +132,7 @@ async function GetTrackerState(hash, tracker) {
 		console.log(err);
 	}
 }
-async function GetTemp(hash, tracker) {
+const GetTemp = async (hash, tracker) => {
 	try {
 		const diagnosticsRequest = await axios.post(baseURL + "tracker/get_diagnostics", {
 			hash,
@@ -166,7 +166,7 @@ async function GetTemp(hash, tracker) {
 		console.error(err);
 	}
 }
-async function GetOdometer(hash, tracker) {
+const GetOdometer = async (hash, tracker) => {
 	try {
 		const counterRequest = await axios.post(baseURL + "tracker/get_counters", {
 			hash,
@@ -180,95 +180,48 @@ async function GetOdometer(hash, tracker) {
 		console.log(err);
 	}
 }
-function readFuelPercentage(data, vehicle) {
-	console.log(`Attempting to read fuel data of ${vehicle.vin}`);
-	console.log(data);
-
-	if (data.units_type === 'percent') {
-		return data.value;
-	}
-	if (data.units === '' && data.max_value === 100 && data.min_value === 0) {
-		return data.value;
-	}
-	if (vehicle.fuel_tank_volume === undefined) {
-		return null;
-	}
-	if (data.units_type === 'litre') {
-		//liters
-		return (data.value * 100) / vehicle.fuel_tank_volume;
-	}
-	if (data.units_type !== undefined && data.units_type.includes('gallon')) {
-		return ((data.value * 3.785411) * 100) / vehicle.fuel_tank_volume;
-	}
-	return null;
+const GetDirection = (angle) => {
+	var directions = ['North', 'North-East', 'East', 'South-East', 'South', 'South-West', 'West', 'North-West'];
+	var index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
+	return directions[index];
 }
-async function GetFuel(hash, tracker, vehicle) {
+const Geocoder = async (location) => {
 	try {
-		const fuelRequest = await axios.post(baseURL + "tracker/get_fuel", {
-			hash,
-			tracker_id: tracker.id
-		}, 3);
-		if (fuelRequest.data && fuelRequest.data.success === true) {
-			let result;
-			let value;
-			let inputs = fuelRequest.data.inputs;
-			if (inputs && inputs.find(i =>
-				(i.name === "fuel_level" ||
-					i.name === "can_fuel" ||
-					i.name === "can_fuel_1" ||
-					i.name === "can_fuel_2" ||
-					i.name === "can_fuel_litres" ||
-					i.name === "obd_fuel") && i.value !== undefined)) {
-				value = inputs.find(i =>
-					(i.name === "fuel_level" ||
-						i.name === "can_fuel" ||
-						i.name === "can_fuel_1" ||
-						i.name === "can_fuel_2" ||
-						i.name === "can_fuel_litres" ||
-						i.name === "obd_fuel") && i.value !== undefined);
-				result = readFuelPercentage(value, vehicle);
-			}
-			if (result === undefined) {
-				console.log("Fuel data not found on: " + tracker.id);
-				return null;
-			}
-			return result;
+		const geocoderRequest = await axios.post(baseURL + "geocoder/search_location",
+			{ hash, location }, 3);
+		if (geocoderRequest.data && counterRequest.data.success === true) {
+			let res = geocoderRequest.value;
+			return res != undefined ? res.value : (null && console.log(`Odometer could not be found for: ${tracker.id}`));
 		}
 	} catch (err) {
 		console.log(err);
 	}
 }
-function getDirection(angle) {
-	var directions = ['North', 'North-East', 'East', 'South-East', 'South', 'South-West', 'West', 'North-West'];
-	var index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
-	return directions[index];
-}
-async function GetData(hash, event, history, tracker, vehicle) {
+const GetData = async (hash, event, history, tracker, vehicle) => {
 	try {
-		/* Retrieve data from API */
-		let trackerState = await GetTrackerState(hash, tracker)
+		// Fetch data from API 
+		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
 		let tempData = await GetTemp(hash, tracker);
 		let odometer = await GetOdometer(hash, tracker);
-		/* Create Data object (to send into SOAP service) */
+		let addr = await Geocoder({ lat: lastGPS.lat, lng: lastGPS.lng });
+		// Create Data object (to send into SOAP service) 
 		let result = {};
-		result.altitude = trackerState.gps.alt
-		result.battery = trackerState.battery_level
-		result.code = event.code
-		result.course = getDirection(lastGPS.heading)
-		result.date = trackerState.gps.updated
-		result.latitude = lastGPS.lat
-		result.longitude = lastGPS.lng
+		result.altitude = trackerState.gps.alt;
+		result.battery = trackerState.battery_level;
+		result.code = event.code;
+		result.course = GetDirection(lastGPS.heading);
+		result.date = trackerState.gps.updated;
+		result.latitude = lastGPS.lat;
+		result.longitude = lastGPS.lng;
 		result.odometer = odometer != undefined ? `${odometer}` : null;
 		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
 		result.speed = lastGPS != undefined ? `${lastGPS.speed}` : null;
 		result.temperature = tempData != undefined ? `${tempData}` : null;
-		// let me figure it out
-		result.asset // * Alphanumeric, placas del vehiculo sin espacios
-		result.direction // Direccion actual del GPS
-		result.humidity // double 
+		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
+		result.direction = addr != undefined ? `${addr}` : null;
+		result.humidity
 		result.ignition // Boolean, determina si el vehiculo esta encendido
-		//IDK 
 		result.customer // {id: identificador de la empresa solicitante, name: Nombre de la empresa transportista}
 		result.shipment // text, numero de viaje o identificador 
 		return result;
@@ -282,5 +235,4 @@ export {
 	FetchObjects,
 	NeedsUpdate,
 	GetData
-
 };
