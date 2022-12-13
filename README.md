@@ -1,7 +1,3 @@
-#Navstar Extensions - GMTransport
-
-Navstar extensions is a tool that sends event related data to the SOAP GMTransport service.
-
 ## Installation
 
 Just clone the repo. Add the following to a **.env** and execute init.sh
