@@ -41,7 +41,7 @@ const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
 			let token = await GetToken();
 			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
 				let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
-				console.log(`Enabled Event types -> ${enabledEvents}`);
+				console.log(`Enabled Event types -> ${enabledEvents.map(({ entity }) => { return entity })}`);
 				let attemptedEventCounter = 0;
 				let updatedEventCounter = 0;
 				enabledEvents.map(async function (evt) {
