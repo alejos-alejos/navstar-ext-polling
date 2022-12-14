@@ -30,7 +30,7 @@ async function SendData(eventData, token) {
 }
 const GPSAssetTracking = async (client, token, eventData, n) => {
 	try {
-		return await client.GPSAssetTracking({ token: token.token, events: eventData });
+		return await client.GPSAssetTrackingAsync({ token: token.token, events: eventData });
 	} catch (err) {
 		console.log(`GPSAssetTracking error ->`);
 		console.error(err);
