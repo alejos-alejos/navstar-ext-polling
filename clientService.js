@@ -19,7 +19,7 @@ async function GetToken() {
 async function SendData(eventData, token) {
 	try {
 		console.log(`Asset tracking data ->`);
-		console.log(assetTrackingData);
+		console.log(eventData);
 		const client = await soap.createClientAsync(wsdlURL);
 		const response = await GPSAssetTracking(client, token, eventData, 3);
 		console.log(`Asset tracking response ->`);
