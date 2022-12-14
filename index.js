@@ -1,8 +1,8 @@
 import "dotenv/config";
 import schedule from "node-schedule";
-import { Auth, NeedsUpdate, GetTags, FetchObjects, GetData } from "./navstar.js";
+import { Auth, NeedsUpdate, FetchObjects, GetData } from "./navstar.js";
 import * as fs from "fs";
-import { GetVersion, SendData } from "./clientService.js";
+import { GetToken, SendData } from "./clientService.js";
 
 //Load start art
 console.log(`Programm starting
@@ -18,65 +18,56 @@ console.log(`Programm starting
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const eventConfiguration = JSON.parse(data);
 const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
-	//We need to check for errors at funciton level since callback is asyncronous
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
-		const version = await GetVersion();
-		if (version == undefined) {
-			console.log("Fatal error: Could not connect to SOAP service.")
-		} else {
-			console.log("GPSAssetTracking service version: " + version);
-			const auth = await Auth();
-			if (auth && auth.success === true) {
-				// Fetch tag id configured in .env as TAG
-				const tag = await GetTags(auth.hash);
-				// Fetch trackers and vehicles attached with said tag object.
-				const [trackers, vehicles] = await FetchObjects(auth.hash, tag);
-				// Search for new events since last check
-				const newEvents = await NeedsUpdate(auth.hash, trackers, fireDate);
-				if (newEvents && newEvents.length > 0) {
-					let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
-					//console.log(enabledEvents);
-					let attemptedEventCounter = 0;
-					let updatedEventCounter = 0;
-					enabledEvents.map(async function (evt) {
-						let filteredEvents = newEvents.filter(ne => ne.event === evt.entity);
-						//console.log(filteredEvents);
-						filteredEvents.map(async function (fe) {
-							attemptedEventCounter++;
-							let tracker = trackers.find(t => t.id === fe.tracker_id);
-							//console.log(tracker);
-							let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
-							//console.log(vehicle);
-							const eventData = await GetData(auth.hash, evt, fe, tracker, vehicle);
-							console.log(eventData);
-							if (eventData !== undefined) {
-								let soapResponse = await SendData(eventData);
-								if (soapResponse === true) {
-									updatedEventCounter++;
-									console.log(soapResponse);
-								}
-								console.log(`#${updatedEventCounter}/${attemptedEventCounter}- have been synced`);
-							}
-						});
+		const auth = await Auth();
+		if (auth) {
+			const labels = [process.env.LABEL_1, process.env.LABEL_2, process.env.LABEL_3, process.env.LABEL_4];
+			console.log(labels);
+			const [trackers, vehicles] = await FetchObjects(auth.hash, labels);
+			const newEvents = await NeedsUpdate(auth.hash, trackers, fireDate);
+			console.log(`Trackers ---> ${trackers.length} `);
+			trackers.forEach(element => {
+				console.log(`Label -> ${element.label} `);
+			});
+			console.log(`Vehicles ---> ${vehicles.length} `);
+			vehicles.forEach(element => {
+				console.log(`Label -> ${element.label} `);
+			});
+			console.log(`New events ---> ${newEvents.length} `);
+			newEvents.forEach(element => {
+				console.log(`Event id -> ${element.id} | Event type -> ${element.type}`);
+			});
+			let token = await GetToken();
+			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
+				let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
+				let attemptedEventCounter = 0;
+				let updatedEventCounter = 0;
+				enabledEvents.map(async function (evt) {
+					let filteredEvents = newEvents.filter(ne => ne.event === evt.entity);
+					filteredEvents.map(async function (fe) {
+						attemptedEventCounter++;
+						let tracker = trackers.find(t => t.id === fe.tracker_id);
+						let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
+						const eventData = await GetData(auth.hash, evt, fe, tracker, vehicle);
+						if (eventData !== undefined) {
+							let soapResponse = await SendData(eventData);
+							console.log(`SOAP response: ${soapResponse}`);
+							if (soapResponse === true)
+								updatedEventCounter++;
+							else
+								console.log('There was a problem with the SOAP request')
+							console.log(`#${updatedEventCounter}/${attemptedEventCounter} - have been synced`);
+						} else {
+							console.log('There was a problem calculating the event data')
+						}
 					});
-				} else {
-					console.log("There's no events to sync...");
-				}
+				});
+			} else {
+				console.log("There's no events to sync...");
 			}
 		}
-
 	} catch (err) {
 		console.error(err);
 	}
 });
-//The following should be executed every minute
-//const updateTagTask = schedule.scheduleJob('*/1 * * * *', async function (tagId, fireDate) {
-//	try{
-//		console.log("Another task:" + fireDate);
-//		console.log(tagId);
-//		tagId = tagId + 1 ;
-//	}catch(err){
-//		console.error(err);
-//	}
-//});

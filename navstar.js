@@ -8,7 +8,7 @@ function GmDate(eventTime) {
 	return parts[0].replace(/-/g, "") + parts[1].replace(/:/g, "").substring(0, 6);
 }
 const Auth = async () => {
-	const login = process.env.USERNAME;
+	const login = process.env.NAVSTAR_USERNAME;
 	const password = process.env.PASSWORD;
 
 	const authRequest = await axios.post(baseURL + "user/auth", {
@@ -39,51 +39,51 @@ const GetTrackers = async (hash) => {
 		}, 3);
 		const trackerResponse = trackerRequest.data;
 		if (trackerResponse && trackerResponse.success === true) {
-			//console.log();
 			return trackerResponse.list;
 		}
 	} catch (err) {
 		console.log(err);
 	}
 }
-const GetVehicles = async (hash, trackers) => {
+const GetVehicles = async (hash) => {
 	try {
 		const vehicleRequest = await axios.post(baseURL + "vehicle/list", {
 			hash,
 		}, 3);
-		const vehicleResponse = vehicleRequest.data;
-		if (vehicleResponse && vehicleResponse.success === true) {
-			const vehicles = trackers.map(t => vehicleResponse.list.find(v => v.tracker_id === t.id));
-			return vehicles;
+		if (vehicleRequest && vehicleRequest.data.success === true) {
+			return vehicleRequest.data.list;
 		}
 	} catch (err) {
 		console.log(err);
 	}
 }
-const FetchObjects = async (hash, tag) => {
+const FetchObjects = async (hash, labels) => {
 	try {
+		//Fetch full list of tracker and vehicle
+		const vehicles = await GetVehicles(hash);
 		const trackers = await GetTrackers(hash);
-		if (trackers && trackers.length > 0) {
-			const trackerResultList = trackers.filter(t => {
-				if (t.tag_bindings.find(b => b.tag_id === tag.id) !== undefined) {
-					return true;
-				}
-				return false;
-			});
-			//	console.log(trackerResultList);
-			const vehicles = await GetVehicles(hash, trackerResultList);
-			return [trackerResultList, vehicles];
-		} else {
-
-			console.log("Something went wrong at trying to fetch trackers");
-		}
-		return [undefined, undefined];
+		if (!vehicles) return [undefined, undefined];
+		if (!trackers) return [undefined, undefined];
+		// filter vehicles by label array
+		const vehiclesResultList = vehicles.filter(v => {
+			if (labels.includes(v.label)) return true;
+			return false;
+		})
+		// extract tracker id from vehicles to filter tracker array
+		const trackerIds = vehiclesResultList.map((value) => {
+			return value.tracker_id
+		})
+		// filter tracker array
+		const trackerResultList = trackers.filter(t => {
+			if (trackerIds.includes(t.id)) return true
+			return false
+		});
+		return [trackerResultList, vehiclesResultList];
 	} catch (err) {
 		console.log(err);
 		return [undefined, undefined];
 	}
 }
-
 const NeedsUpdate = async (hash, trackers, fireDate) => {
 	try {
 		console.log("Last check: " + fireDate);
@@ -94,12 +94,10 @@ const NeedsUpdate = async (hash, trackers, fireDate) => {
 				from: format(subSeconds(fireDate, 30), "yyyy-MM-dd HH:mm:ss"),
 				to: format(fireDate, "yyyy-MM-dd HH:mm:ss")
 			}, 3);
-		console.log(historyRequest.data);
 		if (historyRequest.data.success === true) {
 			//Here we should filter out the events that are not being tracked
 			return historyRequest.data.list;
 		} else {
-
 			console.log("Something went wrong at trying to fetch history events");
 		}
 	} catch (err) {
@@ -185,48 +183,64 @@ const GetDirection = (angle) => {
 	var index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
 	return directions[index];
 }
-const Geocoder = async (location) => {
+const Geocoder = async (hash, tracker, location) => {
 	try {
 		const geocoderRequest = await axios.post(baseURL + "geocoder/search_location",
 			{ hash, location }, 3);
-		if (geocoderRequest.data && counterRequest.data.success === true) {
-			let res = geocoderRequest.value;
-			return res != undefined ? res.value : (null && console.log(`Odometer could not be found for: ${tracker.id}`));
+		if (geocoderRequest.data && geocoderRequest.data.success === true) {
+			let res = geocoderRequest.data.value;
+			return res != undefined ? res : (null && console.log(`Geocoder could not be found for: ${tracker.id}`));
 		}
 	} catch (err) {
 		console.log(err);
 	}
 }
 const GetData = async (hash, event, history, tracker, vehicle) => {
+	// If any attribute is called on a null object this method should return undefined to 
+	// prevent sending the SOAP request
 	try {
+		console.log(`Getting data for ${history.id}`);
 		// Fetch data from API 
 		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
 		let tempData = await GetTemp(hash, tracker);
 		let odometer = await GetOdometer(hash, tracker);
-		let addr = await Geocoder({ lat: lastGPS.lat, lng: lastGPS.lng });
+		let addr = await Geocoder(hash, tracker, { lat: lastGPS.lat, lng: lastGPS.lng });
 		// Create Data object (to send into SOAP service) 
 		let result = {};
 		result.altitude = trackerState.gps.alt;
 		result.battery = trackerState.battery_level;
 		result.code = event.code;
 		result.course = GetDirection(lastGPS.heading);
-		result.date = trackerState.gps.updated;
-		result.latitude = lastGPS.lat;
-		result.longitude = lastGPS.lng;
+		result.date = history.time;
+		result.latitude = history.location.lat;
+		result.longitude = history.location.lng;
 		result.odometer = odometer != undefined ? `${odometer}` : null;
 		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
 		result.speed = lastGPS != undefined ? `${lastGPS.speed}` : null;
 		result.temperature = tempData != undefined ? `${tempData}` : null;
 		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
 		result.direction = addr != undefined ? `${addr}` : null;
-		result.humidity
-		result.ignition // Boolean, determina si el vehiculo esta encendido
-		result.customer // {id: identificador de la empresa solicitante, name: Nombre de la empresa transportista}
-		result.shipment // text, numero de viaje o identificador 
+		result.humidity = null;
+		result.ignition = null;
+		result.customer = { id: null, name: null };
+		result.shipment = '0';
 		return result;
 	} catch (err) {
 		console.error(err)
+		return undefined
+	}
+}
+const GetEventTypes = async (hash) => {
+	try {
+		const eventTypeListRequest = await axios.post(baseURL + "history/type/list",
+			{ hash, locale: "Es-es" }, 3);
+		if (eventTypeListRequest.data && eventTypeListRequest.data.success === true) {
+			let res = eventTypeListRequest.data.list;
+			return res != undefined ? res.value : (null && console.log(`Event types could not be found`));
+		}
+	} catch (err) {
+		console.log(err);
 	}
 }
 export {
@@ -234,5 +248,6 @@ export {
 	GetTags,
 	FetchObjects,
 	NeedsUpdate,
-	GetData
+	GetData,
+	GetEventTypes
 };

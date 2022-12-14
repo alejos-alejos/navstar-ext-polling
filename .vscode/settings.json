@@ -3,5 +3,8 @@
         "activityBar.background": "#13313B",
         "titleBar.activeBackground": "#1A4552",
         "titleBar.activeForeground": "#F9FCFD"
-    }
+    },
+    "cSpell.words": [
+        "NAVSTAR"
+    ]
 }
