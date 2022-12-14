@@ -1,11 +1,11 @@
 {
 	"name": "nav-gm",
 	"version": "1.0.0",
-	"description": "Data transfer program between navstar(navixy) platform and gmtransport SOAP service",
-	"main": "index.js",
+	"description": "Data transfer program between navstar(navixy) platform and client SOAP service",
+	"main": "app.js",
 	"scripts": {
-		"start": "node index.js",
-		"dev": "nodemon index.js",
+		"start": "node app.js",
+		"dev": "nodemon app.js",
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
 	"author": "",
