@@ -41,6 +41,7 @@ const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
 			let token = await GetToken();
 			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
 				let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
+				console.log(`Enabled Event types -> ${enabledEvents}`);
 				let attemptedEventCounter = 0;
 				let updatedEventCounter = 0;
 				enabledEvents.map(async function (evt) {
@@ -50,24 +51,30 @@ const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
 						let tracker = trackers.find(t => t.id === fe.tracker_id);
 						let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
 						const eventData = await GetData(auth.hash, evt, fe, tracker, vehicle);
+						console.log(`Computed data for event${fe.id}-> `);
+						console.log(eventData);
 						if (eventData !== undefined) {
-							let soapResponse = await SendData(eventData);
-							console.log(`SOAP response: ${soapResponse}`);
+							let soapResponse = await SendData(eventData, token);
+							console.log(`SOAP response ->`);
+							console.log(soapResponse);
 							if (soapResponse === true)
 								updatedEventCounter++;
 							else
 								console.log('There was a problem with the SOAP request')
 							console.log(`#${updatedEventCounter}/${attemptedEventCounter} - have been synced`);
 						} else {
-							console.log('There was a problem calculating the event data')
+							console.log('There was a problem computing the event data')
 						}
 					});
 				});
 			} else {
 				console.log("There's no events to sync...");
 			}
+		} else {
+			console.warn(`-> Unable to auth <-`);
 		}
 	} catch (err) {
+		console.log(`Index task error ->`);
 		console.error(err);
 	}
 });

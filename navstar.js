@@ -7,14 +7,18 @@ function GmDate(eventTime) {
 	let parts = eventDate.toISOString().replace(/[TZ]/g, " ").split(" ");
 	return parts[0].replace(/-/g, "") + parts[1].replace(/:/g, "").substring(0, 6);
 }
-const Auth = async () => {
+const Auth = () => {
 	const login = process.env.NAVSTAR_USERNAME;
-	const password = process.env.PASSWORD;
-
-	const authRequest = await axios.post(baseURL + "user/auth", {
-		login, password
-	}, 3);
-	return authRequest.data;
+	const password = process.env.NAVSTAR_PASSWORD;
+	return new Promise((resolve) => {
+		axios.post(baseURL + "user/auth", { login, password }, 3)
+			.then((response) => { resolve(response.data); })
+			.catch((err) => {
+				console.log(`Auth error -> `);
+				console.error(err.code)
+				console.error(err.config.data)
+			})
+	})
 }
 const GetTags = async (hash) => {
 	try {
