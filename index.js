@@ -51,13 +51,13 @@ const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
 						let tracker = trackers.find(t => t.id === fe.tracker_id);
 						let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
 						const eventData = await GetData(auth.hash, evt, fe, tracker, vehicle);
-						console.log(`Computed data for event [${fe.id}] -> `);
-						console.log(eventData);
+						//console.log(`Computed data for event [${fe.id}] -> `);
+						//console.log(eventData);
 						if (eventData !== undefined) {
 							let soapResponse = await SendData(eventData, token);
 							console.log(`SOAP response ->`);
 							console.log(soapResponse);
-							if (soapResponse === true)
+							if (soapResponse)
 								updatedEventCounter++;
 							else
 								console.log('There was a problem with the SOAP request')
