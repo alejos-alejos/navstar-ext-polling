@@ -17,7 +17,7 @@ console.log(`Programm starting
 //Load eventConfiguration from events.js
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const eventConfiguration = JSON.parse(data);
-const task = schedule.scheduleJob('*/300 * * * * *', async function (fireDate) {
+const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
