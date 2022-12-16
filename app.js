@@ -17,7 +17,7 @@ console.log(`Programm starting
 //Load eventConfiguration from events.js
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const eventConfiguration = JSON.parse(data);
-const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
+const task = schedule.scheduleJob('*/300 * * * * *', async function (fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
@@ -38,7 +38,8 @@ const task = schedule.scheduleJob('*/30 * * * * *', async function (fireDate) {
 			newEvents.forEach(element => {
 				console.log(`Event id -> ${element.id} | Event type -> ${element.type}`);
 			});
-			let token = await GetToken();
+			let token = await GetToken(); 
+			console.log(`SOAP Token -> ${token.token}`);
 			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
 				let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
 				console.log(`Enabled Event types -> ${enabledEvents.map(({ entity }) => { return entity })}`);
