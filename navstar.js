@@ -90,12 +90,11 @@ const FetchObjects = async (hash, labels) => {
 }
 const NeedsUpdate = async (hash, trackers, fireDate) => {
 	try {
-		console.log("Last check: " + fireDate);
 		const historyRequest = await axios.post(baseURL + 'history/tracker/list',
 			{
 				hash,
 				trackers: trackers.map(t => t.id),
-				from: format(subSeconds(fireDate, 300), "yyyy-MM-dd HH:mm:ss"),
+				from: format(subSeconds(fireDate, 60), "yyyy-MM-dd HH:mm:ss"),
 				to: format(fireDate, "yyyy-MM-dd HH:mm:ss")
 			}, 3);
 		if (historyRequest.data.success === true) {

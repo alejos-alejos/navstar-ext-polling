@@ -14,50 +14,44 @@ console.log(`Programm starting
        ////     ///, *////  (((((     (((((    ...  ..... ...     ..... ......  ...
       ///      ///     ////( (((     #((      .......    ...       .........  ....        `);
 
-//Load eventConfiguration from events.js
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
-const eventConfiguration = JSON.parse(data);
-const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
+const enabledEvents = JSON.parse(data);
+const task = schedule.scheduleJob('*/1 * * * *', async function (fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
 		if (auth) {
 			const labels = [process.env.LABEL_1, process.env.LABEL_2, process.env.LABEL_3, process.env.LABEL_4];
-			console.log(labels);
 			const [trackers, vehicles] = await FetchObjects(auth.hash, labels);
 			const newEvents = await NeedsUpdate(auth.hash, trackers, fireDate);
-			console.log(`Trackers ---> ${trackers.length} `);
-			trackers.forEach(element => {
+			console.log(`Trackers -> ${trackers.length} ~ ${labels}`);
+			/* trackers.forEach(element => {
 				console.log(`Label -> ${element.label} `);
-			});
-			console.log(`Vehicles ---> ${vehicles.length} `);
-			vehicles.forEach(element => {
+			}); */
+			console.log(`Vehicles -> ${vehicles.length} `);
+			/* vehicles.forEach(element => {
 				console.log(`Label -> ${element.label} `);
-			});
-			console.log(`New events ---> ${newEvents.length} `);
+			}); */
+			console.log(`New events -> ${newEvents.length} `);
 			newEvents.forEach(element => {
-				console.log(`Event id -> ${element.id} | Event type -> ${element.type}`);
+				console.log(`Event id -> ${element.id} | Event type -> ${element.event}`);
 			});
-			let token = await GetToken(); 
+			let token = await GetToken();
 			console.log(`SOAP Token -> ${token.token}`);
 			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
-				let enabledEvents = eventConfiguration.filter(e => e.type.length > 0);
-				console.log(`Enabled Event types -> ${enabledEvents.map(({ entity }) => { return entity })}`);
 				let attemptedEventCounter = 0;
 				let updatedEventCounter = 0;
-				enabledEvents.map(async function (evt) {
-					let filteredEvents = newEvents.filter(ne => ne.event === evt.entity);
-					filteredEvents.map(async function (fe) {
+				enabledEvents.map(async (enabledEvent) => {
+					let filteredEvents = newEvents.filter(newEvent => newEvent.event === enabledEvent.entity);
+					filteredEvents.map(async (filteredEvent) => {
 						attemptedEventCounter++;
-						let tracker = trackers.find(t => t.id === fe.tracker_id);
+						let tracker = trackers.find(t => t.id === filteredEvent.tracker_id);
 						let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
-						const eventData = await GetData(auth.hash, evt, fe, tracker, vehicle);
-						//console.log(`Computed data for event [${fe.id}] -> `);
-						//console.log(eventData);
+						const eventData = await GetData(auth.hash, enabledEvent, filteredEvent, tracker, vehicle);
+						console.log(`Data ready! -> ${eventData.asset}`)
 						if (eventData !== undefined) {
 							let soapResponse = await SendData(eventData, token);
-							console.log(`SOAP response ->`);
-							console.log(soapResponse);
+							console.log(`SOAP response -> ${soapResponse}`);
 							if (soapResponse)
 								updatedEventCounter++;
 							else
@@ -72,7 +66,7 @@ const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 				console.log("There's no events to sync...");
 			}
 		} else {
-			console.warn(`-> Unable to auth <-`);
+			console.warn(`Auth error`);
 		}
 	} catch (err) {
 		console.log(`Index task error ->`);
