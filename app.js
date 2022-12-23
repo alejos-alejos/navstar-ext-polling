@@ -48,7 +48,6 @@ const task = schedule.scheduleJob('*/1 * * * *', async function (fireDate) {
 						let tracker = trackers.find(t => t.id === filteredEvent.tracker_id);
 						let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
 						const eventData = await GetData(auth.hash, enabledEvent, filteredEvent, tracker, vehicle);
-						console.log(`Data ready! -> ${eventData.asset}`)
 						if (eventData !== undefined) {
 							let soapResponse = await SendData(eventData, token);
 							console.log(`SOAP response -> ${soapResponse}`);
