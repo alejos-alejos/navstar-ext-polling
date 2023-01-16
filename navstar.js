@@ -211,23 +211,23 @@ const GetData = async (hash, event, history, tracker, vehicle) => {
 		let addr = await Geocoder(hash, tracker, { lat: lastGPS.lat, lng: lastGPS.lng });
 		// Create Data object (to send into SOAP service) 
 		let result = {};
-		result.altitude = trackerState.gps.alt;
+		result.altitude = trackerState.gps !== undefined ? `${trackerState.gps.alt}` : null;
 		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
-		result.battery = trackerState.battery_level;
-		result.code = event.code;
-		result.course = GetDirection(lastGPS.heading);
+		result.battery = trackerState.battery_level !== undefined ? `${trackerState.battery_level}` : null;
+		result.code = event.code !== undefined ? `${event.code}` : null;
+		result.course = `${GetDirection(lastGPS.heading)}`;
 		result.customer = { id: 0, name: 'TEST' };
 		result.date = history.time.replace(' ', 'T');
-		result.direction = addr != undefined ? `${addr}` : null;
-		result.humidity = null;
-		result.ignition = null;
-		result.latitude = history.location.lat;
-		result.longitude = history.location.lng;
+		result.direction = addr !== undefined ? `${addr}` : null;
+		result.humidity = ``;
+		result.ignition = ``;
+		result.latitude = history.location !== undefined ? `${history.location.lat}` : null;
+		result.longitude = history.location !== undefined ? `${history.location.lng}` : null;
 		result.odometer = odometer != undefined ? `${odometer}` : null;
-		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
-		result.shipment = '0';
-		result.speed = lastGPS != undefined ? `${lastGPS.speed}` : null;
-		result.temperature = tempData != undefined ? `${tempData}` : null;
+		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? `${vehicle.vin}` : `${tracker.source.device_id}`;
+		result.shipment = ``;
+		result.speed = lastGPS !== undefined ? `${lastGPS.speed}` : null;
+		result.temperature = tempData !== undefined ? `${tempData}` : null;
 		return result;
 	} catch (err) {
 		console.error(err)
