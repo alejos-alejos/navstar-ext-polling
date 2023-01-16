@@ -212,22 +212,22 @@ const GetData = async (hash, event, history, tracker, vehicle) => {
 		// Create Data object (to send into SOAP service) 
 		let result = {};
 		result.altitude = trackerState.gps.alt;
+		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
 		result.battery = trackerState.battery_level;
 		result.code = event.code;
 		result.course = GetDirection(lastGPS.heading);
-		result.date = history.time;
+		result.customer = { id: 0, name: 'TEST' };
+		result.date = history.time.replace(' ', 'T');
+		result.direction = addr != undefined ? `${addr}` : null;
+		result.humidity = null;
+		result.ignition = null;
 		result.latitude = history.location.lat;
 		result.longitude = history.location.lng;
 		result.odometer = odometer != undefined ? `${odometer}` : null;
 		result.serialNumber = vehicle.vin !== undefined && vehicle.vin.length > 0 ? vehicle.vin : tracker.source.device_id;
+		result.shipment = '0';
 		result.speed = lastGPS != undefined ? `${lastGPS.speed}` : null;
 		result.temperature = tempData != undefined ? `${tempData}` : null;
-		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
-		result.direction = addr != undefined ? `${addr}` : null;
-		result.humidity = null;
-		result.ignition = null;
-		result.customer = { id: null, name: null };
-		result.shipment = '0';
 		return result;
 	} catch (err) {
 		console.error(err)
