@@ -20,18 +20,14 @@ async function SendData(eventData, token) {
 	try {
 		const client = await soap.createClientAsync(wsdlURL);
 		const response = await GPSAssetTracking(client, token, eventData, 3);
-		console.log(`Client SendData payload:${eventData}`)
 		if (response) return response[0].GPSAssetTrackingResult.AppointResult[0].idJob;
 	} catch (err) {
 		console.log(`Client SendData error ->`);
 		console.error(err)
 	}
 }
-const GPSAssetTracking = async (client, token, eventData, n) => {
+const GPSAssetTracking = async (client, token, eventArray, n) => {
 	try {
-		let eventArray = [eventData];
-		console.log(`Data ready! -> ${eventData.asset}`)
-		console.log(eventArray)
 		return await client.GPSAssetTrackingAsync({ token: token.token, events: eventArray });
 	} catch (err) {
 		console.log(`GPSAssetTracking error ->`);

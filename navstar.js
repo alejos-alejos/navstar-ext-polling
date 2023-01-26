@@ -198,11 +198,11 @@ const Geocoder = async (hash, tracker, location) => {
 		console.log(err);
 	}
 }
-const GetData = async (hash, event, history, tracker, vehicle) => {
+const GetData = async (hash, history, eventCode, tracker, vehicle) => {
 	// If any attribute is called on a null object this method should return undefined to 
 	// prevent sending the SOAP request
 	try {
-		console.log(`Getting data for vehicle: ${vehicle} event: ${history}`);
+		console.log(`Getting data for vehicle: ${vehicle.reg_number}  ~ event: ${history.event}`);
 		// Fetch data from API 
 		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
@@ -214,7 +214,7 @@ const GetData = async (hash, event, history, tracker, vehicle) => {
 		result.altitude = trackerState.gps !== undefined ? `${trackerState.gps.alt}` : null;
 		result.asset = vehicle.reg_number !== undefined ? `${vehicle.reg_number}` : null;
 		result.battery = trackerState.battery_level !== undefined ? `${trackerState.battery_level}` : null;
-		result.code = event.code !== undefined ? `${event.code}` : null;
+		result.code = eventCode !== undefined ? `${eventCode}` : null;
 		result.course = `${GetDirection(lastGPS.heading)}`;
 		result.customer = { id: 0, name: 'TEST' };
 		result.date = history.time.replace(' ', 'T');
