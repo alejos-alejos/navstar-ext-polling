@@ -202,7 +202,7 @@ const GetData = async (hash, event, history, tracker, vehicle) => {
 	// If any attribute is called on a null object this method should return undefined to 
 	// prevent sending the SOAP request
 	try {
-		console.log(`Getting data for ${history.id}`);
+		console.log(`Getting data for vehicle: ${vehicle} event: ${history}`);
 		// Fetch data from API 
 		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
