@@ -3,6 +3,7 @@ import schedule from "node-schedule";
 import { Auth, NeedsUpdate, FetchObjects, GetData } from "./navstar.js";
 import * as fs from "fs";
 import { GetToken, SendData } from "./clientService.js";
+import { rejects } from "assert";
 
 //Load start art
 console.log(`Programm starting
@@ -16,7 +17,7 @@ console.log(`Programm starting
 
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const nEvents = JSON.parse(data);
-const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
+const task = schedule.scheduleJob('*/1 * * * *', async function (fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
@@ -32,19 +33,18 @@ const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 			if (newEvents && newEvents.length > 0 && trackers && vehicles) {
 				let updatedEventCounter = 0;
 				let enabledEvents = nEvents.map((nEvent) => { return nEvent.entity });
-				let promiseArray = newEvents.map((newEvent) => {
-					return GetSoapPayload(auth, newEvent, enabledEvents, trackers, vehicles);
+				let filteredEvents = newEvents.filter(newEvent => enabledEvents.includes(newEvent.event));
+				let promiseArray = filteredEvents.map((newEvent) => {
+					return GetSoapPayload(auth, newEvent, trackers, vehicles);
 				});
 				Promise.all(promiseArray).then((soapPayload) => {
-					console.log(`SOAP payload ->`);
-					console.log(soapPayload);
 					SendData(soapPayload, token).then((soapResponse) => {
 						console.log(`SOAP response -> ${soapResponse}`);
 						if (soapResponse)
 							updatedEventCounter++;
 						else
 							console.log('There was a problem with the SOAP request')
-						console.log(`#${updatedEventCounter}/${soapPayload.length} - have been synced`);
+						console.log(`#${updatedEventCounter}/${promiseArray.length} - have been synced`);
 					});
 				}).catch((e) => {
 					console.log('There was a problem computing the event data');
@@ -61,17 +61,15 @@ const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 	}
 });
 
-const GetSoapPayload = (auth, newEvent, enabledEvents, trackers, vehicles) => {
-	return new Promise((resolve) => {
-		if (enabledEvents.includes(newEvent.event)) {
-			let eventCode = nEvents.find(e => e.entity === newEvent.event).code;
-			let tracker = trackers.find(t => t.id === newEvent.tracker_id);
-			let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
-			GetData(auth.hash, newEvent, eventCode, tracker, vehicle)
-				.then((eventData) => {
-					let soapPayload = { event: eventData };
-					resolve(soapPayload);
-				});
-		}
+const GetSoapPayload = (auth, newEvent, trackers, vehicles) => {
+	return new Promise((resolve, reject) => {
+		let eventCode = nEvents.find(e => e.entity === newEvent.event).code;
+		let tracker = trackers.find(t => t.id === newEvent.tracker_id);
+		let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
+		GetData(auth.hash, newEvent, eventCode, tracker, vehicle)
+			.then((eventData) => {
+				let soapPayload = { event: eventData };
+				resolve(soapPayload);
+			}).catch((e) => reject(e));
 	});
 }
