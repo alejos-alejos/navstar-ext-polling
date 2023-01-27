@@ -16,21 +16,19 @@ async function GetToken() {
 	}
 }
 
-async function SendData(eventData, token) {
+async function SendData(soapPayload) {
 	try {
 		const client = await soap.createClientAsync(wsdlURL);
-		const response = await GPSAssetTracking(client, token, eventData, 3);
+		const response = await GPSAssetTracking(client, soapPayload, 3);
 		if (response) return response[0].GPSAssetTrackingResult.AppointResult[0].idJob;
 	} catch (err) {
 		console.log(`Client SendData error ->`);
 		console.error(err)
 	}
 }
-const GPSAssetTracking = async (client, token, eventArray, n) => {
+const GPSAssetTracking = async (client, soapPayload, n) => {
 	try {
-		const soapPayload = { token: token.token, events: eventArray };
-		console.log(`SOAP payload ->`);
-		console.log(soapPayload);
+
 		return await client.GPSAssetTrackingAsync(soapPayload);
 	} catch (err) {
 		console.log(`GPSAssetTracking error ->`);
