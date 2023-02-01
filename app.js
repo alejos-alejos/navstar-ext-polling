@@ -68,7 +68,7 @@ const GetSoapPayload = (auth, newEvent, trackers, vehicles) => {
 		let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
 		GetData(auth.hash, newEvent, eventCode, tracker, vehicle)
 			.then((eventData) => {
-				let soapPayload = { event: eventData };
+				let soapPayload = { Event: eventData };
 				resolve(soapPayload);
 			}).catch((e) => reject(e));
 	});
