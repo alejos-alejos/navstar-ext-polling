@@ -41,6 +41,8 @@ const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 					const soapPayload = { token: token.token, events: eventArray };
 					console.log(`SOAP payload ->`);
 					console.log(soapPayload);
+					console.log('Events array -> ');
+					console.log(eventArray);
 					SendData(soapPayload).then((soapResponse) => {
 						console.log(`SOAP response -> ${soapResponse}`);
 						if (soapResponse)
