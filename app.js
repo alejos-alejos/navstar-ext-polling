@@ -17,7 +17,7 @@ console.log(`Programm starting
 
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const nEvents = JSON.parse(data);
-const task = schedule.scheduleJob('*/1 * * * *', async function (fireDate) {
+const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
@@ -37,8 +37,11 @@ const task = schedule.scheduleJob('*/1 * * * *', async function (fireDate) {
 				let promiseArray = filteredEvents.map((newEvent) => {
 					return GetSoapPayload(auth, newEvent, trackers, vehicles);
 				});
-				Promise.all(promiseArray).then((soapPayload) => {
-					SendData(soapPayload, token).then((soapResponse) => {
+				Promise.all(promiseArray).then((eventArray) => {
+					const soapPayload = { token: token.token, events: eventArray };
+					console.log(`SOAP payload ->`);
+					console.log(soapPayload);
+					SendData(soapPayload).then((soapResponse) => {
 						console.log(`SOAP response -> ${soapResponse}`);
 						if (soapResponse)
 							updatedEventCounter++;
