@@ -203,6 +203,9 @@ const GetData = async (hash, history, eventCode, tracker, vehicle) => {
 	// prevent sending the SOAP request
 	try {
 		console.log(`Getting data for vehicle: ${vehicle.reg_number}  ~ event: ${history.event}`);
+		//test
+		const date = new Date(history.time.replace(' ', 'T')).toISOString()
+		console.log(date)
 		// Fetch data from API 
 		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
