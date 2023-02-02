@@ -41,6 +41,8 @@ const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
 					const soapPayload = { token: token.token, events: eventArray };
 					console.log(`SOAP payload ->`);
 					console.log(soapPayload);
+					console.log('Events array -> ');
+					console.log(eventArray);
 					SendData(soapPayload).then((soapResponse) => {
 						console.log(`SOAP response -> ${soapResponse}`);
 						if (soapResponse)
@@ -71,7 +73,7 @@ const GetSoapPayload = (auth, newEvent, trackers, vehicles) => {
 		let vehicle = vehicles.find(v => v.tracker_id === tracker.id);
 		GetData(auth.hash, newEvent, eventCode, tracker, vehicle)
 			.then((eventData) => {
-				let soapPayload = { event: eventData };
+				let soapPayload = { Event: eventData };
 				resolve(soapPayload);
 			}).catch((e) => reject(e));
 	});
