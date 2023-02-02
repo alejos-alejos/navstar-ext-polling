@@ -203,9 +203,6 @@ const GetData = async (hash, history, eventCode, tracker, vehicle) => {
 	// prevent sending the SOAP request
 	try {
 		console.log(`Getting data for vehicle: ${vehicle.reg_number}  ~ event: ${history.event}`);
-		//test
-		const date = new Date(history.time.replace(' ', 'T')).toISOString()
-		console.log(date)
 		// Fetch data from API 
 		let trackerState = await GetTrackerState(hash, tracker);
 		let lastGPS = await GetLastGPS(hash, tracker);
@@ -220,7 +217,7 @@ const GetData = async (hash, history, eventCode, tracker, vehicle) => {
 		result.code = eventCode !== undefined ? `${eventCode}` : null;
 		result.course = `${GetDirection(lastGPS.heading)}`;
 		result.customer = { id: 0, name: 'TEST' };
-		result.date = history.time.replace(' ', 'T');
+		result.date = new Date(history.time.replace(' ', 'T')).toISOString().replace('Z', '');
 		result.direction = addr !== undefined ? `${addr}` : null;
 		result.humidity = ``;
 		result.ignition = ``;
