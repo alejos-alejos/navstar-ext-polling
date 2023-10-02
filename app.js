@@ -17,12 +17,12 @@ console.log(`Programm starting
 
 let data = fs.readFileSync('./events.json', { encoding: 'UTF-8' });
 const nEvents = JSON.parse(data);
-const task = schedule.scheduleJob('*/5 * * * *', async function (fireDate) {
+const task = schedule.scheduleJob('*/5 * * * *', async function(fireDate) {
 	try {
 		console.log(`Expected time: ${fireDate}  Current time: ${new Date()}`);
 		const auth = await Auth();
 		if (auth) {
-			const labels = [process.env.LABEL_1, process.env.LABEL_2, process.env.LABEL_3, process.env.LABEL_4];
+			const labels = [process.env.LABEL_1, process.env.LABEL_2, process.env.LABEL_3, process.env.LABEL_4, process.env.LABEL_5];
 			const [trackers, vehicles] = await FetchObjects(auth.hash, labels);
 			const newEvents = await NeedsUpdate(auth.hash, trackers, fireDate);
 			console.log(`New events -> ${newEvents.length} `);
